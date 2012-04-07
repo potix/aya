@@ -1,0 +1,73 @@
+* ライセンス
+- MITライセンス
+
+* 必要環境
+- python 2.6以降
+
+* コンセプト
+- サクっと使えるシンプルなもの
+- ping監視、TCPポート監視、URL監視が可能
+- 状況に応じて死活監視の停止やメール送信の停止が行える
+
+* 機能
+- PING(ICMP)とTCPポートとURLへのアクセス監視を行うことができる
+- up/downを検出するとメールで通知を行う事が可能
+
+* 動作
+- globalセクション設定は最初に一度だけ読み込まれる
+- その他のセクション設定は、定期的に読み込まれる
+- 各エントリセクション毎にスレッドを作成する
+- 不要になったエントリセクションは自動的に終了する
+- 追加されたエントリセクションは自動的に新規スレッドが生成される
+- 各エントリスレッドはポーリングを行う前にコンフィグをリロードする
+
+* 使い方
+./aya.py -c config_file
+
+* 設定ファイル
+[global]                         # グローバル設定セクション
+debug = True                     # debugを有効にする            
+log_file_path = /var/log/aya.log # ログファイルのパス
+pid_file_path = /var/run/aya.pid # pidファイルのパス
+
+[entry1]                                  # エントリーセクション名
+                                          # ユニークな名前でセクションを複数指定可能
+polling_stop = False                      # 監視を停止
+polling_host = polling_hostname1          # 監視対象ホスト
+polling_protocols = ICMP, TCP:80, TCP:443, URL:http://user@pass:webserver/location
+                                          # 監視するプロトコルもしくはURL
+polling_interval = 60                     # 監視間隔
+polling_timeout = 5                       # 監視の際のタイムアウト時間
+proxy_url = http://user:pass@proxy:3128   # URL監視をする場合のproxyのURL
+alert_threshold = 3/3                     # alertとみなすしきい値/チェックするウィンドウ
+                                          #         3            /        3
+                                          #  3回downでalert          最新の3件の結果
+alert_block_time = 300                    # down後フラップするalertをblockする時間
+                                          # 監視対象がup/downを繰り返すような環境で利用
+mail = True                               # メールでの通知を有効にする
+mail_tls = True                           # TLS, SSLを使う
+mail_starttls = True                      # STARTTLSを使う
+mail_auth = True                          # ユーザー認証を行う
+mail_smtp_host = smtp_hostname            # SMTPサーバー
+mail_smtp_port = 587                      # SMTPポート
+mail_hostname = mail_from_hostname        # メール送信ホスト
+mail_username = mail_user_name            # ユーザー名
+mail_password = mail_password             # パスワード
+mail_to = mail_address1, mail_address2    # 送信作メールアドレス
+mail_from = mail_from_address             # 送信元のメールアドレス
+mail_subject = $UPDOWN alert! $PHOST - $PPROTO from $MHOST # メールのサブジェクト
+
+
+* 一時監視停止やメール送信の停止
+- 設定ファイルの止めたいエントリのpolling_stop設定をTrueに変更すると監視が停止されます
+- メール送信を止めたいエントリのmail設定をFalseに変更するとメール送信がが停止されます
+
+* 状態遷移表
+               | UP          | DOWN     | UP READY  |
+alertと判定    | DOWN（MAIL) | DOWN     | DOWN      |
+alertではない  | UP          | DOWN     | UP（MAIL) |
+block時間経過  | UP          | UP READY | UP READY  |
+
+* 注意事項
+down後フラップする状況を考慮しているため、 blocking_timeを0としていしても、
+UP READY状態に遷移するので実質は2度UPと判定されないとUPになりません。

@@ -1,0 +1,47 @@
+[global]
+#debug = True
+log_file_path = /tmp/aya.log
+pid_file_path = /tmp/aya.pid
+
+[entry1]
+polling_stop = False
+polling_host = polling_hostname1
+polling_protocols = ICMP, TCP:80, TCP:443, URL:http://user:password@polling_hostname1:8080/hoge, URL:https://uer:password@polling_hostname1/fuga
+proxy_url = http://user:password@proxy_hostname1:3128/
+#polling_interval = 60
+#polling_timeout = 5
+#alert_threshold = 3/3
+#alert_block_time = 300
+mail = True
+mail_starttls = True
+mail_tls = False
+mail_auth = True
+mail_smtp_host = smtp_hostname
+mail_smtp_port = 587
+mail_hostname = mail_from_hostname
+mail_username = mail_user_name
+mail_password = mail_password
+mail_to = mail_address1, mail_address2
+mail_from = mail_from_address
+mail_subject = $UPDOWN alert! $PHOST - $PPROTO from $MHOST
+
+[entry2]
+polling_stop = True
+polling_host = polling_hostname2
+polling_protocols = ICMP, TCP:80, TCP:443
+#polling_interval = 60
+#polling_timeout = 5
+#alert_threshold = 3/3
+#alert_block_time = 300
+mail = True
+#mail_tls = True
+#mail_starttls = False
+#mail_auth = True
+mail_smtp_host = smtp_hostname
+mail_smtp_port = 587
+mail_hostname = mail_from_hostname
+#mail_username = mail_user_name
+#mail_password = mail_password
+mail_to = mail_address1, mail_address2
+mail_from = mail_from_address
+mail_subject = $UPDOWN alert! $PHOST - $PPROTO from $MHOST
