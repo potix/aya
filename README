@@ -46,7 +46,7 @@
                                             # 監視対象がup/downを繰り返すような環境で利用
   mail = True                               # メールでの通知を有効にする
   mail_tls = True                           # TLS, SSLを使う
-  mail_starttls = True                      # STARTTLSを使う
+  mail_starttls = False                     # STARTTLSを使う
   mail_auth = True                          # ユーザー認証を行う
   mail_smtp_host = smtp_hostname            # SMTPサーバー
   mail_smtp_port = 587                      # SMTPポート
