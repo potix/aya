@@ -69,4 +69,9 @@
 
 * 注意事項
   down後フラップする状況を考慮しているため、 blocking_timeを0としていしても、
-  UP READY状態に遷移するので実質は2度UPと判定されないとUPになりません。
+  UP READY状態に遷移するので実質は2度UPと判定されないとUPになりません
+
+* その他
+  mail.pyはメールを送信する部分だけを抜き出したスクリプトです
+  使い方は以下
+    mail.py -c <config> -s <subject> -b <body>
