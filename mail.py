@@ -35,6 +35,7 @@ import distutils
 import logging
 import logging.handlers
 import traceback
+from socket import gethostname
 from email.MIMEText import MIMEText
 from email.Header import Header
 from email.Utils import formatdate
@@ -108,28 +109,43 @@ class Mail:
         self.config = ConfigParser.SafeConfigParser(self.config_defaults)
         self.config.read(self.config_file_path)
     def load_global_config(self):
-        global_config = {}
-        for key in self.global_config_keys:
-            global_config[key] = self.config.get("global", key).strip()
+        global_config = {"debug" : "false"}
+        if self.config.has_section("global"):
+            for key in self.global_config_keys:
+                global_config[key] = self.config.get("global", key).strip()
         self.global_config = global_config
     def load_mail_config(self):
-        mail_config = {}
-        for key in self.mail_config_keys:
-            mail_config[key] = self.config.get("mail", key).strip()
-        for required_mail_key in self.required_mail_keys:
-            if not mail_config[required_mail_key]:
-                self.logger.error("%s option is required" % (required_mail_key))
-                return False
-            if mail_config["auth"].lower() == "true":
-                for required_mail_auth_key in self.required_mail_auth_keys:
-                    if not mail_config[required_mail_auth_key]:
-                        self.logger.error("%s option is required, if use mail_auth" % (required_mail_auth_key))
-                        return False
+        mail_config = {"tls" : "false",
+                       "starttls" : "false",
+                       "hostname" : gethostname(),
+                       "auth" : "false" }
+        if self.config.has_section("mail"):
+            for key in self.mail_config_keys:
+                mail_config[key] = self.config.get("mail", key).strip()
+            for required_mail_key in self.required_mail_keys:
+                if not mail_config[required_mail_key]:
+                    self.logger.error("%s option is required" % (required_mail_key))
+                    return False
+                if mail_config["auth"].lower() == "true":
+                    for required_mail_auth_key in self.required_mail_auth_keys:
+                        if not mail_config[required_mail_auth_key]:
+                            self.logger.error("%s option is required, if use mail_auth" % (required_mail_auth_key))
+                            return False
         self.mail_config = mail_config
         return True
     def create_logger(self, debug, log_file_path):
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(process)d %(thread)d %(message)s")
         handler = logging.handlers.TimedRotatingFileHandler(log_file_path, "D", 1, 10)
+        handler.setFormatter(formatter)
+        self.logger = logging.getLogger("")
+        if debug.lower() == "true":
+            self.logger.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.INFO)
+        self.logger.addHandler(handler)
+    def create_logger_stdout(self, debug):
+        formatter = logging.Formatter("%(asctime)s %(levelname)s %(process)d %(thread)d %(message)s")
+        handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(formatter)
         self.logger = logging.getLogger("")
         if debug.lower() == "true":
@@ -151,16 +167,31 @@ class Mail:
         message['To'] = self.mail_config["to"]
         message['Date'] = formatdate()
         return message
-    def send(self, subject, body):
+    def send(self, subject, body, mailfrom=None, mailto=None, smtp_host=None, smtp_port=None, hostname=None, debug=None):
         self.load_config()
         self.load_global_config()
-        self.create_logger(self.global_config["debug"], self.global_config["log_file_path"])
+        if not self.load_mail_config():
+            self.logger.error("failed in load mail config");
+            sys.exit(1)
+        if subject:
+            self.mail_config["subject"] = subject
+        if smtp_host:
+            self.mail_config["smtp_host"] = smtp_host
+        if smtp_port:
+            self.mail_config["smtp_port"] = smtp_port
+        if mailfrom:
+            self.mail_config["from"] = mailfrom
+        if mailto:
+            self.mail_config["to"] = mailto
+        if hostname:
+            self.mail_config["hostname"] = hostname
+        if debug:
+            self.global_config["debug"] = debug
+        if "debug" in self.global_config and "log_file_path" in self.global_config:
+            self.create_logger(self.global_config["debug"], self.global_config["log_file_path"])
+        else:
+            self.create_logger_stdout(self.global_config["debug"])
         try:
-            if not self.load_mail_config():
-                self.logger.error("failed in load mail config");
-                sys.exit(1)
-            if subject:
-               self.mail_config["subject"] = subject
             message = self.create_message(self.mail_config["subject"], body)
             if self.mail_config["tls"].lower() == "true":
                 sock = smtplib.SMTP_SSL()
@@ -184,8 +215,14 @@ class Mail:
 config_file_path = default_config_file_path
 subject = ""
 body = ""
+host = None
+port = None
+mailfrom = None
+mailto = None
+hostname = None
+debug = None
 try:
-    optlist, args = getopt.getopt(sys.argv[1:], "c:s:b:", longopts=["config=", "subject=", "body="])
+    optlist, args = getopt.getopt(sys.argv[1:], "c:d:s:b:h:p:f:t:H:", longopts=["config=", "subject=", "body=", "host=", "port=", "from=", "to=", "hostname=", "debug="])
 except getopt.GetoptError:
     print("invalid argument")
     sys.exit(1)
@@ -196,5 +233,17 @@ for opt, args in optlist:
         subject = args
     elif opt in ("-b", "--body"):
         body = args
+    elif opt in ("-h", "--host"):
+        host = args
+    elif opt in ("-p", "--port"):
+        port = args
+    elif opt in ("-f", "--from"):
+        mailfrom = args
+    elif opt in ("-t", "--to"):
+        mailto = args
+    elif opt in ("-H", "--hostname"):
+        hostname = args
+    elif opt in ("-d", "--debug"):
+        debug = args
 mail = Mail(config_file_path)
-mail.send(subject, body)
+mail.send(subject,  body, mailfrom, mailto, host, port, hostname, debug)
